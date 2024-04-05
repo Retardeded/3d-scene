@@ -2,51 +2,99 @@ import * as THREE from 'three';
 import { GUI } from 'dat.gui';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 
-
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 const renderer = new THREE.WebGLRenderer();
 const controls = new OrbitControls(camera, renderer.domElement);
 renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.gammaOutput = true;
+renderer.gammaFactor = 2.2;
+renderer.physicallyCorrectLights = true;
 document.body.appendChild(renderer.domElement);
 
 const light = new THREE.DirectionalLight(0xffffff, 1);
 light.position.set(1, 1, 1).normalize();
+
+light.intensity = 1.5; // Or any value greater than 1 to increase brightness
 scene.add(light);
+
+// Add additional lights if needed
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.5); // Soft white light
+scene.add(ambientLight);
+
+const pointLight = new THREE.PointLight(0xffffff, 1, 100);
+pointLight.position.set(10, 10, 10);
+scene.add(pointLight);
+
+const spotLight = new THREE.SpotLight(0xffffff);
+spotLight.position.set(100, 1000, 100);
+spotLight.castShadow = true;
+scene.add(spotLight);
+
+const hemisphereLight = new THREE.HemisphereLight(0xffffbb, 0x080820, 1);
+scene.add(hemisphereLight);
+
 
 camera.position.z = 5;
 
-const vertexShader = `
-  varying vec3 vNormal;
+const cubeTextureLoader = new THREE.CubeTextureLoader();
+
+const backgroundTexture = cubeTextureLoader.load([
+  'cubeImgs/image_part_001.jpg', // posx
+  'cubeImgs/image_part_002.jpg', // negx
+  'cubeImgs/image_part_003.jpg', // posy
+  'cubeImgs/image_part_004.jpg', // negy
+  'cubeImgs/image_part_005.jpg', // posz
+  'cubeImgs/image_part_006.jpg'  // negz
+]);
+
+scene.background = backgroundTexture;
+
+
+const environmentMap = cubeTextureLoader.load([
+  'cubeImgs/image_part_001.jpg', // posx
+  'cubeImgs/image_part_002.jpg', // negx
+  'cubeImgs/image_part_003.jpg', // posy
+  'cubeImgs/image_part_004.jpg', // negy
+  'cubeImgs/image_part_005.jpg', // posz
+  'cubeImgs/image_part_006.jpg'  // negz
+]);
+
+// Vertex Shader
+// Vertex Shader for Reflection
+const reflectionVertexShader = `
+  varying vec3 vReflect;
   void main() {
-    vNormal = normalize(normalMatrix * normal); // Transform the normal to camera space
+    vec4 worldPosition = modelMatrix * vec4(position, 1.0);
+    vec3 worldNormal = normalize(mat3(modelMatrix) * normal);
+    vec3 viewVector = normalize(cameraPosition - worldPosition.xyz);
+    vReflect = reflect(viewVector, worldNormal);
     gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
   }
 `;
 
-// Fragment Shader
-const fragmentShader = `
-  varying vec3 vNormal;
+// Fragment Shader for Reflection
+const reflectionFragmentShader = `
+  uniform samplerCube envMap;
+  varying vec3 vReflect;
   void main() {
-    float intensity = pow(0.5 - dot(vNormal, vec3(0, 0, 1.0)), 2.0);
-    gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0) * intensity; // Simple effect to simulate refraction
+    vec3 reflectedColor = textureCube(envMap, vec3(-vReflect.x, vReflect.yz)).rgb; // Invert the x component for correct reflection
+    gl_FragColor = vec4(reflectedColor, 1.0);
   }
 `;
 
-const shaderMaterial = new THREE.ShaderMaterial({
-  vertexShader: vertexShader,
-  fragmentShader: fragmentShader
+// Reflective Material
+const reflectiveMaterial = new THREE.ShaderMaterial({
+  uniforms: {
+    envMap: { value: environmentMap }
+  },
+  vertexShader: reflectionVertexShader,
+  fragmentShader: reflectionFragmentShader
 });
 
-// Create a sphere with the shader material
-const sphereGeometry = new THREE.SphereGeometry(5, 32, 32);
-const sphere = new THREE.Mesh(sphereGeometry, shaderMaterial);
-scene.add(sphere);
 
-const cubeGeometry = new THREE.BoxGeometry(3, 3, 3);
-const cubeMaterial = new THREE.MeshPhongMaterial({ color: 0x00ff00 }); // Green cube
-const cube = new THREE.Mesh(cubeGeometry, cubeMaterial);
-cube.position.x = -5; // Move the cube to the left
+const cube = new THREE.Mesh(new THREE.BoxGeometry(4, 4, 4), reflectiveMaterial);
+cube.position.x = -4;
 scene.add(cube);
 
 // Create a cylinder with a simple Lambert material
@@ -56,11 +104,23 @@ const cylinder = new THREE.Mesh(cylinderGeometry, cylinderMaterial);
 cylinder.position.x = 5; // Move the cylinder to the right
 scene.add(cylinder);
 
-const gui = new GUI();
+const planeGeometry = new THREE.PlaneGeometry(10, 10);
+const whiteMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
+const whitePlane = new THREE.Mesh(planeGeometry, whiteMaterial);
+whitePlane.position.set(0, -5, 0); // Position it below the objects
+whitePlane.rotateX(-Math.PI / 2); // Rotate to face up
+scene.add(whitePlane);
 
-gui.addColor({ color: cubeMaterial.color.getHex() }, 'color').onChange((value) => {
-  cubeMaterial.color.set(value);
-});
+// Create a plane with a texture material using one of your images
+const textureLoader = new THREE.TextureLoader();
+const imageTexture = textureLoader.load('cubeImgs/image_part_001.jpg');
+const textureMaterial = new THREE.MeshBasicMaterial({ map: imageTexture });
+const texturedPlane = new THREE.Mesh(planeGeometry, textureMaterial);
+texturedPlane.position.set(0, 5, 0); // Position it above the objects
+texturedPlane.rotateX(-Math.PI / 2); // Rotate to face down
+scene.add(texturedPlane);
+
+const gui = new GUI();
 
 // GUI control for the light position
 gui.add(light.position, 'x', -10, 10);
@@ -69,17 +129,14 @@ gui.add(light.position, 'z', -10, 10);
 
 function animate() {
   requestAnimationFrame(animate);
-  controls.update();
 
   cube.rotation.x += 0.01;
   cube.rotation.y += 0.01;
   cylinder.rotation.x += 0.01;
   cylinder.rotation.y += 0.01;
 
-  controls.update();
-  renderer.render(scene, camera);
-
-  renderer.render(scene, camera);
+  controls.update(); // Just one call needed per frame
+  renderer.render(scene, camera); // Just one call needed per frame
 }
 
 animate();

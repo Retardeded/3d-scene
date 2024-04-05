@@ -1,4 +1,5 @@
 const path = require('path');
+const CopyWebpackPlugin = require('copy-webpack-plugin');
 
 module.exports = {
   mode: 'development',
@@ -20,4 +21,13 @@ module.exports = {
       },
     ],
   },
+  plugins: [
+    // ... (other plugins)
+    new CopyWebpackPlugin({
+      patterns: [
+        { from: 'src/cubeImgs', to: 'cubeImgs' }, // Adjust the 'from' path as needed.
+      ],
+    }),
+  ],
+  // ... (other webpack configurations)
 };
