@@ -4,10 +4,10 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-camera.position.set(-37.69442196379509, 13.708580002778586, 22.25770822384103);
+camera.position.set(-28.69442196379509, 10.708580002778586, 20.25770822384103);
 
 // Set camera rotation
-camera.rotation.set(-0.6349300144703124, -0.785006635489656, -0.48008315161972465);
+camera.rotation.set(-0.3549300144703124, -0.0025006635489656, -0.00008315161972465);
 
 
 const renderer = new THREE.WebGLRenderer();
@@ -169,7 +169,7 @@ for (let i = 1; i <= 9; i++) {
   mesh.receiveShadow = true; // Enables the mesh to receive shadows
 
   
-  mesh.position.x = i * -5.5;
+  mesh.position.z = 15 + i * -5.5;
   scene.add(mesh);
 
   // Add to the appropriate array
@@ -217,9 +217,6 @@ function animate() {
     cube.rotation.x += 0.01;
     cube.rotation.y += 0.01;
   });
-
-  console.log("Camera position:", camera.position);
-  console.log("Camera rotation:", camera.rotation);
 
   controls.update(); // Just one call needed per frame
   renderer.render(scene, camera); // Just one call needed per frame
