@@ -32,23 +32,14 @@ scene.add(light);
 const dirLightHelper = new THREE.DirectionalLightHelper(light, 5);
 scene.add(dirLightHelper);
 
-// Add point lights to cover more areas
-const pointLight1 = new THREE.PointLight(0xffffff, 1, 100);
-pointLight1.position.set(-10, 10, 10);
-pointLight1.castShadow = true;
-scene.add(pointLight1);
+const light2 = new THREE.DirectionalLight(0xffffff, 2);
+light2.position.set(-50, -50, -50); // Opposite direction
+light2.castShadow = true;
+scene.add(light2);
 
-// Add point light helpers to visualize their positions
-const pointLightHelper1 = new THREE.PointLightHelper(pointLight1, 1);
-scene.add(pointLightHelper1);
-
-
-// This function will update light helpers on each frame, if they're not updating automatically
-function updateHelpers() {
-  dirLightHelper.update();
-  pointLightHelper1.update();
-}
-
+// Adding its helper
+const dirLightHelper2 = new THREE.DirectionalLightHelper(light2, 5);
+scene.add(dirLightHelper2);
 
 camera.position.z = 5;
 
@@ -136,6 +127,10 @@ const reflectiveMaterial = new THREE.ShaderMaterial({
 reflectiveMaterial.uniforms.directionalLightPosition = { value: light.position };
 reflectiveMaterial.uniforms.directionalLightColor = { value: light.color };
 reflectiveMaterial.uniforms.directionalLightIntensity = { value: light.intensity };
+reflectiveMaterial.uniforms['directionalLightPosition2'] = { value: light2.position };
+reflectiveMaterial.uniforms['directionalLightColor2'] = { value: light2.color };
+reflectiveMaterial.uniforms['directionalLightIntensity2'] = { value: light2.intensity };
+
 
 const rotatingCubes = []; // Store cubes that should rotate
 const diffrentCubes = [];
@@ -263,7 +258,6 @@ function animate() {
 
   controls.update(); // Just one call needed per frame
   renderer.render(scene, camera); // Just one call needed per frame
-  updateHelpers();
 }
 
 animate();
