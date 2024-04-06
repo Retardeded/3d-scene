@@ -27,15 +27,18 @@ scene.add(dirLightHelper);
 
 // Add a hemisphere light for soft ambient lighting
 const hemisphereLight = new THREE.HemisphereLight(0xffffbb, 0x080820, 0.6);
+THREE.HemisphereLight.castShadow = true;
 scene.add(hemisphereLight);
 
 // Add point lights to cover more areas
 const pointLight1 = new THREE.PointLight(0xffffff, 1, 100);
 pointLight1.position.set(-10, 10, 10);
+pointLight1.castShadow = true;
 scene.add(pointLight1);
 
 const pointLight2 = new THREE.PointLight(0xffffff, 1, 100);
 pointLight2.position.set(10, -10, -10);
+pointLight2.castShadow = true;
 scene.add(pointLight2);
 
 // Add point light helpers to visualize their positions
@@ -131,7 +134,11 @@ const reflectiveMaterial = new THREE.ShaderMaterial({
 const rotatingCubes = []; // Store cubes that should rotate
 const normalsHelpers = []; // Store normal helpers for updating
 const textureLoader = new THREE.TextureLoader();
-const materials = [];
+const materials = {
+  phong: new THREE.MeshPhongMaterial({ color: 0x00ff00 }),
+  lambert: new THREE.MeshLambertMaterial({ color: 0xff0000 }),
+  standard: new THREE.MeshStandardMaterial({ color: 0x0000ff }),
+};
 
 for (let i = 1; i <= 9; i++) {
   const texturePath = `cubeImgs/image_part_00${i}.jpg`;
@@ -140,9 +147,12 @@ for (let i = 1; i <= 9; i++) {
     texturePath,
     function (texture) {
       // When texture is loaded
-      const material = reflectiveMaterial; // Use the reflective material
-      const cubeGeometry = new THREE.BoxGeometry(4, 4, 4); // Define the geometry
-      const cube = new THREE.Mesh(cubeGeometry, material);
+      const cubeGeometry = new THREE.BoxGeometry(4, 4, 4);
+      const cubeMaterial = reflectiveMaterial; // Assume you've already defined this material
+
+      const cube = new THREE.Mesh(cubeGeometry, cubeMaterial);
+      cube.castShadow = true; // Enables the cube to cast shadows
+      cube.receiveShadow = true; // Enables the cube to receive shadows
       const normalsHelper = new VertexNormalsHelper(cube, 2, 0x00ff00, 1);
       scene.add(normalsHelper);
       normalsHelpers.push(normalsHelper);
@@ -152,13 +162,10 @@ for (let i = 1; i <= 9; i++) {
       scene.add(cube);
 
       // Make every second cube rotate
-      if (i % 2 === 0) {
+      if (i % 3 === 0) {
         rotatingCubes.push(cube); // Add to rotatingCubes array
       }
       
-      if (materials.length === 9) {
-        animate(); // Start animation loop when all textures are loaded
-      }
     },
     undefined,
     function (err) {
@@ -174,16 +181,14 @@ const standardMaterial = new THREE.MeshStandardMaterial({ color: 0x0000ff });
 // Add materials to the GUI
 const gui = new GUI();
 
-// GUI control for the light position
-gui.add(light.position, 'x', -10, 10);
-gui.add(light.position, 'y', -10, 10);
-gui.add(light.position, 'z', -10, 10);
-
-const materialFolder = gui.addFolder('Materials');
-materialFolder.addColor(phongMaterial, 'color').name('Phong Color');
-materialFolder.addColor(lambertMaterial, 'color').name('Lambert Color');
-materialFolder.addColor(standardMaterial, 'color').name('Standard Color');
-materialFolder.open();
+const cubeMaterialController = gui.add({ material: 'phong' }, 'material', ['phong', 'lambert', 'standard']);
+cubeMaterialController.onChange(function(value) {
+  // Apply the selected material to the cubes
+  rotatingCubes.forEach(cube => {
+    cube.material = materials[value];
+    cube.needsUpdate = true; // This might be needed to update the material
+  });
+});
 
 // Add light controls to the GUI
 const lightFolder = gui.addFolder('Lights');
