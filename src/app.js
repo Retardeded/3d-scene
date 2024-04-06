@@ -1,12 +1,19 @@
 import * as THREE from 'three';
 import { GUI } from 'dat.gui';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { VertexNormalsHelper } from 'three/examples/jsm/helpers/VertexNormalsHelper.js';
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+camera.position.set(-37.69442196379509, 13.708580002778586, 22.25770822384103);
+
+// Set camera rotation
+camera.rotation.set(-0.6349300144703124, -0.785006635489656, -0.48008315161972465);
+
+
 const renderer = new THREE.WebGLRenderer();
 const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 0, 0);
+controls.update();
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.gammaOutput = true;
 renderer.gammaFactor = 2.2;
@@ -66,11 +73,12 @@ const reflectionVertexShader = `
 `;
 
 const reflectionFragmentShader = `
+  uniform vec3 customColor; // This will be controlled by the GUI
   varying vec3 vNormal;
   varying vec3 vViewPosition;
-  varying vec3 vLightDir; // Received from the vertex shader
-  uniform vec3 directionalLightColor; // The color of the directional light
-  uniform float directionalLightIntensity; // The intensity of the directional light
+  varying vec3 vLightDir;
+  uniform vec3 directionalLightColor;
+  uniform float directionalLightIntensity;
 
   void main() {
     vec3 normal = normalize(vNormal);
@@ -83,15 +91,17 @@ const reflectionFragmentShader = `
     // Calculate the color as the product of the light color, its intensity, and the diffuse term
     vec3 diffuse = directionalLightColor * directionalLightIntensity * diff;
     
+    // Here, use customColor instead of declaring baseColor again
+    vec3 color = customColor;
+
     // Add your angle-based color mixing logic here
     float angle = dot(viewPosition, normal);
-    vec3 baseColor = vec3(1.0); // base color
-    baseColor = mix(baseColor, vec3(1,1,0), step(0.0, angle)); // yellow
-    baseColor = mix(baseColor, vec3(0,0,1), step(0.5, angle)); // blue
-    baseColor = mix(baseColor, vec3(1,0,0), step(0.75, angle)); // red
+    color = mix(color, vec3(1,1,0), step(0.0, angle)); // mix with yellow
+    color = mix(color, vec3(0,0,1), step(0.5, angle)); // mix with blue
+    color = mix(color, vec3(1,0,0), step(0.75, angle)); // mix with red
     
-    // Combine the base color with the diffuse lighting
-    vec3 finalColor = baseColor * diffuse;
+    // Combine the mixed color with the diffuse lighting
+    vec3 finalColor = color * diffuse;
     
     gl_FragColor = vec4(finalColor, 1.0);
   }
@@ -116,7 +126,7 @@ scene.background = backgroundTexture;
 // Reflective Material
 const reflectiveMaterial = new THREE.ShaderMaterial({
   uniforms: {
-    // Remove the envMap uniform if not using environment mapping
+    customColor: { value: new THREE.Color(0xffffff) },
   },
   vertexShader: reflectionVertexShader,
   fragmentShader: reflectionFragmentShader,
@@ -129,8 +139,6 @@ reflectiveMaterial.uniforms.directionalLightIntensity = { value: light.intensity
 
 const rotatingCubes = []; // Store cubes that should rotate
 const staticCubes = []; // Store cubes that should rotate
-const normalsHelpers = []; // Store normal helpers for updating
-const textureLoader = new THREE.TextureLoader();
 const materials = {
   phong: new THREE.MeshPhongMaterial({ color: 0x00ff00 }),
   lambert: new THREE.MeshLambertMaterial({ color: 0xff0000 }),
@@ -138,46 +146,53 @@ const materials = {
 };
 
 for (let i = 1; i <= 9; i++) {
-  const texturePath = `cubeImgs/image_part_00${i}.jpg`;
+  let geometry;
+  switch (i % 4) {
+    case 0:
+      geometry = new THREE.BoxGeometry(4, 4, 4); // Cube
+      break;
+    case 1:
+      geometry = new THREE.CylinderGeometry(2, 2, 4, 32); // Cylinder
+      break;
+    case 2:
+      geometry = new THREE.SphereGeometry(2, 32, 32); // Sphere
+      break;
+    case 3:
+      geometry = new THREE.TorusGeometry(2, 0.5, 16, 100); // Torus
+      break;
+  }
 
-  textureLoader.load(
-    texturePath,
-    function (texture) {
-      // When texture is loaded
-      const cubeGeometry = new THREE.BoxGeometry(4, 4, 4);
-      const cubeMaterial = reflectiveMaterial; // Assume you've already defined this material
+  const material = reflectiveMaterial; // Using your custom shader material
+  const mesh = new THREE.Mesh(geometry, material);
 
-      const cube = new THREE.Mesh(cubeGeometry, cubeMaterial);
-      cube.castShadow = true; // Enables the cube to cast shadows
-      cube.receiveShadow = true; // Enables the cube to receive shadows
-      const normalsHelper = new VertexNormalsHelper(cube, 2, 0x00ff00, 1);
-      scene.add(normalsHelper);
-      normalsHelpers.push(normalsHelper);
-      
-      // Position cubes in a line for simplicity
-      cube.position.x = i * -5.5;
-      scene.add(cube);
+  mesh.castShadow = true; // Enables the mesh to cast shadows
+  mesh.receiveShadow = true; // Enables the mesh to receive shadows
 
-      // Make every second cube rotate
-      if (i % 3 === 0) {
-        cube.material = materials['phong'];
-        cube.needsUpdate = true;
-        rotatingCubes.push(cube); // Add to rotatingCubes array
-      } else {
-        staticCubes.pop(cube);
-      }
-      
-    },
-    undefined,
-    function (err) {
-      console.error('An error occurred while loading the texture:', err);
-    }
-  );
+  
+  mesh.position.x = i * -5.5;
+  scene.add(mesh);
+
+  // Add to the appropriate array
+  if (i % 3 === 0) {
+    rotatingCubes.push(mesh); // These will rotate
+  } else {
+    staticCubes.push(mesh); // These will stay static
+  }
 }
 
 // Add materials to the GUI
 const gui = new GUI();
 
+const colorControl = { customColor: "#ffffff" }; // Default white color
+const guiColorControl = gui.addColor(colorControl, 'customColor').name('Custom Color');
+
+// GUI change listener
+guiColorControl.onChange(function(value) {
+  // Update the shader uniform
+  reflectiveMaterial.uniforms.customColor.value.set(value);
+  // You might need to flag the material as needing an update
+  reflectiveMaterial.needsUpdate = true;
+});
 const cubeMaterialController = gui.add({ material: 'phong' }, 'material', ['phong', 'lambert', 'standard']);
 cubeMaterialController.onChange(function(value) {
   // Apply the selected material to the cubes
@@ -201,15 +216,14 @@ function animate() {
   rotatingCubes.forEach((cube, index) => {
     cube.rotation.x += 0.01;
     cube.rotation.y += 0.01;
-
-    // Update the normals helper for this cube
-    normalsHelpers[index].update();
   });
+
+  console.log("Camera position:", camera.position);
+  console.log("Camera rotation:", camera.rotation);
 
   controls.update(); // Just one call needed per frame
   renderer.render(scene, camera); // Just one call needed per frame
   updateHelpers();
-
 }
 
 animate();
