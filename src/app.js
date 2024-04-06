@@ -150,15 +150,10 @@ const materialSettings = {
 const sharedColor = { value: new THREE.Color(0xffffff) };
 
 // Standard and Phong materials will use the shared color
-const phongMaterial = new THREE.MeshPhongMaterial({ color: sharedColor.value, shininess: materialSettings.shininess });
-const standardMaterial = new THREE.MeshStandardMaterial({ color: sharedColor.value, roughness: materialSettings.roughness, metalness: materialSettings.metalness });
-const lambertMaterial = new THREE.MeshLambertMaterial({ color: sharedColor.value });
-
-// Materials object to store all materials
 const materials = {
-  standard: standardMaterial,
-  phong: phongMaterial,
-  lambert: lambertMaterial,
+  phong: new THREE.MeshPhongMaterial({ color: sharedColor.value }),
+  lambert: new THREE.MeshLambertMaterial({ color: sharedColor.value }),
+  standard: new THREE.MeshStandardMaterial({ color: sharedColor.value, roughness: materialSettings.roughness, metalness: materialSettings.metalness }),
 };
 
 for (let i = 1; i <= 9; i++) {
@@ -181,7 +176,7 @@ for (let i = 1; i <= 9; i++) {
   const material = reflectiveMaterial; // Using your custom shader material
   let mesh = null;
   if (i % 3 == 0) {
-    mesh = new THREE.Mesh(geometry, standardMaterial);
+    mesh = new THREE.Mesh(geometry, materials['standard']);
   } else {
     mesh = new THREE.Mesh(geometry, material);
   }
@@ -220,25 +215,34 @@ const colorControl = { customColor: "#ffffff" }; // Default white color
 const guiColorControl = gui.addColor(colorControl, 'customColor').name('Custom Color');
 
 // GUI change listener
+
 guiColorControl.onChange(function(value) {
-  // Update the shader uniform
+  // Update the shared color
+  sharedColor.value.set(value);
+
+  // Update the standard materials' color
+  Object.keys(materials).forEach(key => {
+    materials[key].color.set(value);
+    materials[key].needsUpdate = true;
+  });
+
+  // Update custom shader material's uniform
   reflectiveMaterial.uniforms.customColor.value.set(value);
-  // You might need to flag the material as needing an update
   reflectiveMaterial.needsUpdate = true;
 });
+
 const cubeMaterialController = gui.add({ material: 'standard' }, 'material', ['standard', 'lambert', 'phong']);
 cubeMaterialController.onChange(function(value) {
   // Apply the selected material to the cubes
   rotatingCubes.forEach(cube => {
     cube.material = materials[value];
-    cube.needsUpdate = true; // This might be needed to update the material
+    cube.material.needsUpdate = true; // This might be needed to update the material
   });
-
   diffrentCubes.forEach(cube => {
     cube.material = materials[value];
-    cube.needsUpdate = true; // This might be needed to update the material
+    cube.material.needsUpdate = true; // This might be needed to update the material
   });
-
+  // If you have other groups of cubes that need updating, repeat the process here.
 });
 
 // Add light controls to the GUI
