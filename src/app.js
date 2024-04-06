@@ -48,11 +48,19 @@ camera.position.z = 5;
 const reflectionVertexShader = `
   varying vec3 vNormal;
   varying vec3 vViewPosition;
+  varying vec4 vWorldPosition;
+  varying vec3 vLightDir; // Direction from the surface to the light
+  uniform vec3 directionalLightPosition; // The position of a directional light in the scene
 
   void main() {
     vNormal = normalize(normalMatrix * normal);
     vec4 worldPosition = modelMatrix * vec4(position, 1.0);
+    vWorldPosition = worldPosition;
     vViewPosition = cameraPosition - worldPosition.xyz;
+    
+    // Calculate the vector from the vertex to the light source
+    vLightDir = normalize(directionalLightPosition - worldPosition.xyz);
+    
     gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
   }
 `;
@@ -60,19 +68,32 @@ const reflectionVertexShader = `
 const reflectionFragmentShader = `
   varying vec3 vNormal;
   varying vec3 vViewPosition;
+  varying vec3 vLightDir; // Received from the vertex shader
+  uniform vec3 directionalLightColor; // The color of the directional light
+  uniform float directionalLightIntensity; // The intensity of the directional light
 
   void main() {
     vec3 normal = normalize(vNormal);
     vec3 viewPosition = normalize(vViewPosition);
+    vec3 lightDir = normalize(vLightDir);
+    
+    // Lambert's cosine law for diffuse reflection
+    float diff = max(dot(lightDir, normal), 0.0);
+    
+    // Calculate the color as the product of the light color, its intensity, and the diffuse term
+    vec3 diffuse = directionalLightColor * directionalLightIntensity * diff;
+    
+    // Add your angle-based color mixing logic here
     float angle = dot(viewPosition, normal);
-    vec3 color = vec3(1.0); // base color
-
-    // Blend colors based on the angle
-    color = mix(color, vec3(1,1,0), step(0.0, angle)); // yellow
-    color = mix(color, vec3(0,0,1), step(0.5, angle)); // blue
-    color = mix(color, vec3(1,0,0), step(0.75, angle)); // red
-
-    gl_FragColor = vec4(color, 1.0);
+    vec3 baseColor = vec3(1.0); // base color
+    baseColor = mix(baseColor, vec3(1,1,0), step(0.0, angle)); // yellow
+    baseColor = mix(baseColor, vec3(0,0,1), step(0.5, angle)); // blue
+    baseColor = mix(baseColor, vec3(1,0,0), step(0.75, angle)); // red
+    
+    // Combine the base color with the diffuse lighting
+    vec3 finalColor = baseColor * diffuse;
+    
+    gl_FragColor = vec4(finalColor, 1.0);
   }
 `;
 
@@ -101,6 +122,10 @@ const reflectiveMaterial = new THREE.ShaderMaterial({
   fragmentShader: reflectionFragmentShader,
   side: THREE.DoubleSide // Render both sides
 });
+
+reflectiveMaterial.uniforms.directionalLightPosition = { value: light.position };
+reflectiveMaterial.uniforms.directionalLightColor = { value: light.color };
+reflectiveMaterial.uniforms.directionalLightIntensity = { value: light.intensity };
 
 const rotatingCubes = []; // Store cubes that should rotate
 const staticCubes = []; // Store cubes that should rotate
