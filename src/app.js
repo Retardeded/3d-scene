@@ -25,50 +25,21 @@ scene.add(light);
 const dirLightHelper = new THREE.DirectionalLightHelper(light, 5);
 scene.add(dirLightHelper);
 
-// Add a hemisphere light for soft ambient lighting
-const hemisphereLight = new THREE.HemisphereLight(0xffffbb, 0x080820, 0.6);
-THREE.HemisphereLight.castShadow = true;
-scene.add(hemisphereLight);
-
 // Add point lights to cover more areas
 const pointLight1 = new THREE.PointLight(0xffffff, 1, 100);
 pointLight1.position.set(-10, 10, 10);
 pointLight1.castShadow = true;
 scene.add(pointLight1);
 
-const pointLight2 = new THREE.PointLight(0xffffff, 1, 100);
-pointLight2.position.set(10, -10, -10);
-pointLight2.castShadow = true;
-scene.add(pointLight2);
-
 // Add point light helpers to visualize their positions
 const pointLightHelper1 = new THREE.PointLightHelper(pointLight1, 1);
 scene.add(pointLightHelper1);
 
-const pointLightHelper2 = new THREE.PointLightHelper(pointLight2, 1);
-scene.add(pointLightHelper2);
-
-// Use spotlights for focused lighting
-const spotLight = new THREE.SpotLight(0xffffff, 1);
-spotLight.position.set(15, 40, 35);
-spotLight.angle = Math.PI / 6;
-spotLight.castShadow = true;
-scene.add(spotLight);
-
-// Add a spotlight helper
-const spotLightHelper = new THREE.SpotLightHelper(spotLight);
-scene.add(spotLightHelper);
-
-// Ambient light for overall illumination
-const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
-scene.add(ambientLight);
 
 // This function will update light helpers on each frame, if they're not updating automatically
 function updateHelpers() {
   dirLightHelper.update();
   pointLightHelper1.update();
-  pointLightHelper2.update();
-  spotLightHelper.update();
 }
 
 
@@ -132,6 +103,7 @@ const reflectiveMaterial = new THREE.ShaderMaterial({
 });
 
 const rotatingCubes = []; // Store cubes that should rotate
+const staticCubes = []; // Store cubes that should rotate
 const normalsHelpers = []; // Store normal helpers for updating
 const textureLoader = new THREE.TextureLoader();
 const materials = {
@@ -163,7 +135,11 @@ for (let i = 1; i <= 9; i++) {
 
       // Make every second cube rotate
       if (i % 3 === 0) {
+        cube.material = materials['phong'];
+        cube.needsUpdate = true;
         rotatingCubes.push(cube); // Add to rotatingCubes array
+      } else {
+        staticCubes.pop(cube);
       }
       
     },
@@ -173,10 +149,6 @@ for (let i = 1; i <= 9; i++) {
     }
   );
 }
-
-const phongMaterial = new THREE.MeshPhongMaterial({ color: 0x00ff00 });
-const lambertMaterial = new THREE.MeshLambertMaterial({ color: 0xff0000 });
-const standardMaterial = new THREE.MeshStandardMaterial({ color: 0x0000ff });
 
 // Add materials to the GUI
 const gui = new GUI();
