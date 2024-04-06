@@ -138,11 +138,27 @@ reflectiveMaterial.uniforms.directionalLightColor = { value: light.color };
 reflectiveMaterial.uniforms.directionalLightIntensity = { value: light.intensity };
 
 const rotatingCubes = []; // Store cubes that should rotate
+const diffrentCubes = [];
 const staticCubes = []; // Store cubes that should rotate
+const materialSettings = {
+  shininess: 30,
+  roughness: 0.5,
+  metalness: 0.5
+};
+
+// Create initial materials with these settings
+const sharedColor = { value: new THREE.Color(0xffffff) };
+
+// Standard and Phong materials will use the shared color
+const phongMaterial = new THREE.MeshPhongMaterial({ color: sharedColor.value, shininess: materialSettings.shininess });
+const standardMaterial = new THREE.MeshStandardMaterial({ color: sharedColor.value, roughness: materialSettings.roughness, metalness: materialSettings.metalness });
+const lambertMaterial = new THREE.MeshLambertMaterial({ color: sharedColor.value });
+
+// Materials object to store all materials
 const materials = {
-  phong: new THREE.MeshPhongMaterial({ color: 0x00ff00 }),
-  lambert: new THREE.MeshLambertMaterial({ color: 0xff0000 }),
-  standard: new THREE.MeshStandardMaterial({ color: 0x0000ff }),
+  standard: standardMaterial,
+  phong: phongMaterial,
+  lambert: lambertMaterial,
 };
 
 for (let i = 1; i <= 9; i++) {
@@ -163,7 +179,12 @@ for (let i = 1; i <= 9; i++) {
   }
 
   const material = reflectiveMaterial; // Using your custom shader material
-  const mesh = new THREE.Mesh(geometry, material);
+  let mesh = null;
+  if (i % 3 == 0) {
+    mesh = new THREE.Mesh(geometry, standardMaterial);
+  } else {
+    mesh = new THREE.Mesh(geometry, material);
+  }
 
   mesh.castShadow = true; // Enables the mesh to cast shadows
   mesh.receiveShadow = true; // Enables the mesh to receive shadows
@@ -175,6 +196,8 @@ for (let i = 1; i <= 9; i++) {
   // Add to the appropriate array
   if (i % 3 === 0) {
     rotatingCubes.push(mesh); // These will rotate
+  } else if (i % 2 == 0) {
+    diffrentCubes.push(mesh); 
   } else {
     staticCubes.push(mesh); // These will stay static
   }
@@ -182,6 +205,16 @@ for (let i = 1; i <= 9; i++) {
 
 // Add materials to the GUI
 const gui = new GUI();
+
+gui.add(materialSettings, 'shininess', 0, 100).onChange(value => {
+  materials.phong.shininess = value;
+});
+gui.add(materialSettings, 'roughness', 0, 1).onChange(value => {
+  materials.standard.roughness = value;
+});
+gui.add(materialSettings, 'metalness', 0, 1).onChange(value => {
+  materials.standard.metalness = value;
+});
 
 const colorControl = { customColor: "#ffffff" }; // Default white color
 const guiColorControl = gui.addColor(colorControl, 'customColor').name('Custom Color');
@@ -193,13 +226,19 @@ guiColorControl.onChange(function(value) {
   // You might need to flag the material as needing an update
   reflectiveMaterial.needsUpdate = true;
 });
-const cubeMaterialController = gui.add({ material: 'phong' }, 'material', ['phong', 'lambert', 'standard']);
+const cubeMaterialController = gui.add({ material: 'standard' }, 'material', ['standard', 'lambert', 'phong']);
 cubeMaterialController.onChange(function(value) {
   // Apply the selected material to the cubes
   rotatingCubes.forEach(cube => {
     cube.material = materials[value];
     cube.needsUpdate = true; // This might be needed to update the material
   });
+
+  diffrentCubes.forEach(cube => {
+    cube.material = materials[value];
+    cube.needsUpdate = true; // This might be needed to update the material
+  });
+
 });
 
 // Add light controls to the GUI
