@@ -44,6 +44,9 @@ scene.add(dirLightHelper2);
 camera.position.z = 5;
 
 const reflectionVertexShader = `
+  uniform vec3 directionalLightPosition2; // Position of the second light
+  varying vec3 vLightDir2; // Direction to the second light
+
   varying vec3 vNormal;
   varying vec3 vViewPosition;
   varying vec4 vWorldPosition;
@@ -58,12 +61,20 @@ const reflectionVertexShader = `
     
     // Calculate the vector from the vertex to the light source
     vLightDir = normalize(directionalLightPosition - worldPosition.xyz);
-    
+
+    // New line for the second light
+    vLightDir2 = normalize(directionalLightPosition2 - worldPosition.xyz);
+
     gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
   }
 `;
 
 const reflectionFragmentShader = `
+
+  varying vec3 vLightDir2; // Direction to the second light
+  uniform vec3 directionalLightColor2; // Color of the second light
+  uniform float directionalLightIntensity2; // Intensity of the second light
+
   uniform vec3 customColor; // This will be controlled by the GUI
   varying vec3 vNormal;
   varying vec3 vViewPosition;
@@ -77,10 +88,13 @@ const reflectionFragmentShader = `
     vec3 lightDir = normalize(vLightDir);
     
     // Lambert's cosine law for diffuse reflection
-    float diff = max(dot(lightDir, normal), 0.0);
-    
-    // Calculate the color as the product of the light color, its intensity, and the diffuse term
+    float diff = max(dot(normalize(vLightDir), normal), 0.0);
     vec3 diffuse = directionalLightColor * directionalLightIntensity * diff;
+
+    // Lambert's cosine law for the second light
+    float diff2 = max(dot(normalize(vLightDir2), normal), 0.0);
+    vec3 diffuse2 = directionalLightColor2 * directionalLightIntensity2 * diff2;
+
     
     // Here, use customColor instead of declaring baseColor again
     vec3 color = customColor;
@@ -92,8 +106,8 @@ const reflectionFragmentShader = `
     color = mix(color, vec3(1,0,0), step(0.75, angle)); // mix with red
     
     // Combine the mixed color with the diffuse lighting
-    vec3 finalColor = color * diffuse;
-    
+    vec3 finalColor = color * (diffuse + diffuse2);
+
     gl_FragColor = vec4(finalColor, 1.0);
   }
 `;
@@ -247,6 +261,13 @@ lightFolder.add(light.position, 'y', -50, 50).name('Position Y');
 lightFolder.add(light.position, 'z', -50, 50).name('Position Z');
 lightFolder.add(light, 'intensity', 0, 2).name('Intensity');
 lightFolder.open();
+
+const light2Folder = gui.addFolder('Second Light');
+light2Folder.add(light2.position, 'x', -50, 50).name('Position X');
+light2Folder.add(light2.position, 'y', -50, 50).name('Position Y');
+light2Folder.add(light2.position, 'z', -50, 50).name('Position Z');
+light2Folder.add(light2, 'intensity', 0, 2).name('Intensity');
+light2Folder.open();
 
 function animate() {
   requestAnimationFrame(animate);
