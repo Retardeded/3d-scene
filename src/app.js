@@ -71,45 +71,41 @@ const reflectionVertexShader = `
 
 const reflectionFragmentShader = `
 
-  varying vec3 vLightDir2; // Direction to the second light
-  uniform vec3 directionalLightColor2; // Color of the second light
-  uniform float directionalLightIntensity2; // Intensity of the second light
+uniform vec3 customColor; // This will be controlled by the GUI
+uniform vec3 directionalLightColor;
+uniform float directionalLightIntensity;
+uniform vec3 directionalLightColor2;
+uniform float directionalLightIntensity2;
+uniform vec3 ambientLightColor; // Ambient light color
+uniform float ambientLightIntensity; // Ambient light intensity
 
-  uniform vec3 customColor; // This will be controlled by the GUI
-  varying vec3 vNormal;
-  varying vec3 vViewPosition;
-  varying vec3 vLightDir;
-  uniform vec3 directionalLightColor;
-  uniform float directionalLightIntensity;
+varying vec3 vNormal;
+varying vec3 vViewPosition;
+varying vec3 vLightDir;
+varying vec3 vLightDir2;
 
-  void main() {
+void main() {
     vec3 normal = normalize(vNormal);
-    vec3 viewPosition = normalize(vViewPosition);
-    vec3 lightDir = normalize(vLightDir);
-    
-    // Lambert's cosine law for diffuse reflection
-    float diff = max(dot(normalize(vLightDir), normal), 0.0);
+    vec3 lightDirNormalized = normalize(vLightDir);
+    vec3 lightDir2Normalized = normalize(vLightDir2);
+
+    // Diffuse reflection for the first light
+    float diff = max(dot(lightDirNormalized, normal), 0.0);
     vec3 diffuse = directionalLightColor * directionalLightIntensity * diff;
 
-    // Lambert's cosine law for the second light
-    float diff2 = max(dot(normalize(vLightDir2), normal), 0.0);
+    // Diffuse reflection for the second light
+    float diff2 = max(dot(lightDir2Normalized, normal), 0.0);
     vec3 diffuse2 = directionalLightColor2 * directionalLightIntensity2 * diff2;
 
-    
-    // Here, use customColor instead of declaring baseColor again
-    vec3 color = customColor;
+    // Ambient light component
+    vec3 ambient = ambientLightColor * ambientLightIntensity;
 
-    // Add your angle-based color mixing logic here
-    float angle = dot(viewPosition, normal);
-    color = mix(color, vec3(1,1,0), step(0.0, angle)); // mix with yellow
-    color = mix(color, vec3(0,0,1), step(0.5, angle)); // mix with blue
-    color = mix(color, vec3(1,0,0), step(0.75, angle)); // mix with red
-    
-    // Combine the mixed color with the diffuse lighting
-    vec3 finalColor = color * (diffuse + diffuse2);
+    // Combine diffuse, ambient, and base color
+    vec3 baseColor = customColor;
+    vec3 finalColor = (diffuse + diffuse2 + ambient) * baseColor;
 
     gl_FragColor = vec4(finalColor, 1.0);
-  }
+}
 `;
 
 
